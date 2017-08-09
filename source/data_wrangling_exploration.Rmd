@@ -1,0 +1,32 @@
+---
+title: "Data wrangling and exploration"
+author: "Thierry Onkelinx"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+library(knitr)
+opts_chunk$set(
+  echo = TRUE,
+  message = FALSE
+)
+```
+
+```{r packages}
+library(readxl)
+library(dplyr)
+library(DT)
+```
+
+```{r import-data}
+raw_data <- read_excel("../original/rsos161077supp1.xlsx", n_max = 111) %>%
+  slice(-1) %>%
+  select(
+    Church = 1, Lights = 10,
+    Date80 = 2, Number80 = 3, Status80 = 5, 
+    Date16 = 6, Emerged16 = 7, Number16 = 8, Status16 = 11
+  )
+```
+```{r}
+datatable(raw_data)
+```
