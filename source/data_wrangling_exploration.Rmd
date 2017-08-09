@@ -31,13 +31,14 @@ datatable(raw_data)
 ```
 
 ```{r}
-clean_status <- raw_data %>%
+status <- raw_data %>%
   mutate(
     Church = factor(Church),
     Lights = factor(
       Lights, 
       levels = c("not", "half", "full")
     ),
+    Paired = !is.na(Status80) & !is.na(Status16),
     Status80 = factor(
       Status80, 
       levels = c("no bats", "used", "colony"),
@@ -56,6 +57,26 @@ clean_status <- raw_data %>%
       Period == "Status80", 
       levels = c(TRUE, FALSE),
       labels = c("80's", "2016")
-    )
+    ),
+    Status = factor(
+      Status,
+      levels = c("no bats", "used", "colony"),
+      ordered = TRUE
+    ) 
+
   )
+```
+
+```{r}
+status %>%
+  count(Paired, Period, Status) %>%
+  spread(Status, n) %>%
+  kable()
+```
+
+```{r}
+status %>%
+  count(Paired, Status, Period, Lights) %>%
+  spread(Lights, n, fill = 0) %>%
+  kable()
 ```
