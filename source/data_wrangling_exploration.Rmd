@@ -14,7 +14,7 @@ opts_chunk$set(
 
 ```{r packages}
 library(readxl)
-library(dplyr)
+library(tidyverse)
 library(DT)
 ```
 
@@ -22,11 +22,40 @@ library(DT)
 raw_data <- read_excel("../original/rsos161077supp1.xlsx", n_max = 111) %>%
   slice(-1) %>%
   select(
-    Church = 1, Lights = 10,
-    Date80 = 2, Number80 = 3, Status80 = 5, 
-    Date16 = 6, Emerged16 = 7, Number16 = 8, Status16 = 11
+    Church = 1, Lights = 10, Status80 = 5, Status16 = 11
   )
 ```
-```{r}
+
+```{r echo = FALSE}
 datatable(raw_data)
+```
+
+```{r}
+clean_status <- raw_data %>%
+  mutate(
+    Church = factor(Church),
+    Lights = factor(
+      Lights, 
+      levels = c("not", "half", "full")
+    ),
+    Status80 = factor(
+      Status80, 
+      levels = c("no bats", "used", "colony"),
+      ordered = TRUE
+    ),
+    Status16 = gsub("\\?", "", Status16) %>%
+      factor(
+        levels = c("no bats", "used", "colony"),
+        ordered = TRUE
+      ) 
+  ) %>%
+  gather("Period", "Status", Status80, Status16) %>%
+  filter(!is.na(Status)) %>%
+  mutate(
+    Period = factor(
+      Period == "Status80", 
+      levels = c(TRUE, FALSE),
+      labels = c("80's", "2016")
+    )
+  )
 ```
