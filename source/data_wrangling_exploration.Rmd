@@ -80,3 +80,8 @@ status %>%
   spread(Lights, n, fill = 0) %>%
   kable()
 ```
+
+```{r}
+write_csv(status, "../data/status.csv")
+```
+
