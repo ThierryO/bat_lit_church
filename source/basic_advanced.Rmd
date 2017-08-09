@@ -1,0 +1,33 @@
+---
+title: "Basic or advanced statistics"
+output: html_notebook
+---
+
+```{r}
+library(knitr)
+library(tidyverse)
+library(ordinal)
+```
+
+```{r}
+status <- read_csv("../data/status.csv") %>%
+  mutate(
+    Church = factor(Church),
+    Lights = ifelse(Period == "80's", "not", Lights) %>%
+      factor(levels = c("not", "half", "full")),
+    Period = factor(
+      Period,
+      levels = c("80's", "2016")
+    ),
+    Status = factor(
+      Status,
+      levels = c("no bats", "used", "colony"),
+      ordered = TRUE
+    ) 
+  )
+```
+
+```{r}
+model_status <- clmm(Status ~ Period + Lights + (1|Church), data = status)
+summary(model_status)
+```
