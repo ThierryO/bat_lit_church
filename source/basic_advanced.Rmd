@@ -7,6 +7,7 @@ output: html_notebook
 library(knitr)
 library(tidyverse)
 library(ordinal)
+library(scales)
 ```
 
 ```{r}
@@ -21,13 +22,79 @@ status <- read_csv("../data/status.csv") %>%
     ),
     Status = factor(
       Status,
-      levels = c("no bats", "used", "colony"),
+      levels = c("colony", "used", "no bats"),
       ordered = TRUE
     ) 
   )
 ```
 
 ```{r}
-model_status <- clmm(Status ~ Period + Lights + (1|Church), data = status)
-summary(model_status)
+status_model <- clmm(Status ~ Period + Lights + (1|Church), data = status)
+summary(status_model)
+```
+```{r}
+contrasts <- function(model, contrast, n = 1000){
+  cf <- summary(model)$coef
+  params <- rnorm(
+    n * nrow(cf), 
+    mean = cf[, "Estimate"], 
+    sd = cf[, "Std. Error"]
+  ) %>%
+    matrix(nrow = nrow(cf))
+  contrast %*% params
+}
+```
+
+```{r}
+cumulative_logit <- contrasts(
+  status_model, 
+  contrast =  rbind(
+    "colony:80's:unlit" = c(1, 0, 0, 0, 0),
+    "colony:2016:unlit" = c(1, 0, -1, 0, 0),
+    "colony:2016:half lit" = c(1, 0, -1, -1, 0),
+    "colony:2016:full lit" = c(1, 0, -1, 0, -1),
+    "colony or used:80's:unlit" = c(0, 1, 0, 0, 0),
+    "colony or used:2016:unlit" = c(0, 1, -1, 0, 0),
+    "colony or used:2016:half lit" = c(0, 1, -1, -1, 0),
+    "colony or used:2016:full lit" = c(0, 1, -1, 0, -1)
+  )
+)
+cumulative_prediction <- cumulative_logit %>%
+  plogis() %>%
+  apply(
+    1, 
+    function(x){
+      c(
+        Mean = mean(x), 
+        LCL = quantile(x, 0.025) %>%
+          unname(), 
+        UCL = quantile(x, 0.975) %>%
+          unname()
+      )
+    }
+  ) %>%
+  t() %>%
+  as.data.frame() %>%
+  rownames_to_column("Contrast") %>%
+  extract(Contrast, c("Status", "Period", "Lights"), "(.*):(.*):(.*)")
+```
+
+```{r}
+ggplot(
+  cumulative_prediction, 
+  aes(
+    x = Lights, 
+    y = Mean, ymin = LCL, ymax = UCL, 
+    colour = Status, 
+    shape = Period, linetype = Period
+  )
+) +
+  geom_errorbar(position = position_dodge(width = 0.5)) +
+  geom_point(position = position_dodge(width = 0.5)) +
+  scale_y_continuous(
+    "Estimated probability",
+    labels = percent, 
+    limits = 0:1
+  ) + 
+  coord_flip()
 ```
