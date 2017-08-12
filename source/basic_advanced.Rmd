@@ -23,11 +23,11 @@ library(scales)
 status <- read_csv("../data/status.csv") %>%
   mutate(
     Church = factor(Church),
-    Lights = ifelse(Period == "80's", "not", Lights) %>%
-      factor(
-        levels = c("not", "half", "full"),
-        labels = c("dark", "partly lit", "fully lit")
-      ),
+    Lights = factor(
+      Lights,
+      levels = c("not", "half", "full"),
+      labels = c("dark", "partly lit", "fully lit")
+    ),
     Period = factor(
       Period,
       levels = c("80's", "2016")
@@ -36,9 +36,7 @@ status <- read_csv("../data/status.csv") %>%
       Status,
       levels = c("colony", "used", "no bats"),
       ordered = TRUE
-    ),
-    Colony = as.integer(Status == "colony"),
-    ColonyUsed = as.integer(Status != "no bats")
+    )
   )
 ```
 
@@ -90,10 +88,11 @@ cumulative_prediction <- cumulative_logit %>%
   t() %>%
   as.data.frame() %>%
   rownames_to_column("Contrast") %>%
-  extract(Contrast, c("Status", "Lights"), "(.*):(.*)")
+  extract(Contrast, c("Status", "Lights"), "(.*):(.*)") %>%
+  mutate(Lights = factor(Lights, levels = levels(status$Lights)))
 ```
 
-```{r base-model, fig.cap = "Estimated cumulative probability"}
+```{r base-model, fig.cap = "Estimated cumulative probability based on the 2016 dataset."}
 ggplot(
   cumulative_prediction, 
   aes(
@@ -170,4 +169,96 @@ ggplot(
     limits = 0:1
   ) + 
   coord_flip()
+```
+
+```{r}
+status %>%
+  filter(Period == "2016") %>%
+  count(Lights, Renovated, Status)
+```
+
+
+```{r}
+renovation_model <- clmm(
+  Status ~ Period + Lights + Renovated + (1|Church), 
+  data = status
+)
+drop1(renovation_model, test = "Chisq")
+summary(renovation_model)
+```
+
+```{r}
+cumulative_logit <- contrasts(
+  renovation_model, 
+  contrast =  rbind(
+    "colony:80's:dark:no" = c(1, 0, 0, 0, 0, 0),
+    "colony or used:80's:dark:no" = c(0, 1, 0, 0, 0, 0),
+    "colony:2016:dark:no" = c(1, 0, -1, 0, 0, 0),
+    "colony:2016:partly lit:no" = c(1, 0, -1, -1, 0, 0),
+    "colony:2016:fully lit:no" = c(1, 0, -1, 0, -1, 0),
+    "colony or used:2016:dark:no" = c(0, 1, -1, 0, 0, 0),
+    "colony or used:2016:partly lit:no" = c(0, 1, -1, -1, 0, 0),
+    "colony or used:2016:fully lit:no" = c(0, 1, -1, 0, -1, 0),
+    "colony:2016:dark:yes" = c(1, 0, -1, 0, 0, -1),
+    "colony:2016:partly lit:yes" = c(1, 0, -1, -1, 0, -1),
+    "colony:2016:fully lit:yes" = c(1, 0, -1, 0, -1, -1),
+    "colony or used:2016:dark:yes" = c(0, 1, -1, 0, 0, -1),
+    "colony or used:2016:partly lit:yes" = c(0, 1, -1, -1, 0, -1),
+    "colony or used:2016:fully lit:yes" = c(0, 1, -1, 0, -1, -1)
+  )
+)
+cumulative_prediction <- cumulative_logit %>%
+  plogis() %>%
+  apply(
+    1, 
+    function(x){
+      c(
+        Mean = mean(x), 
+        LCL = quantile(x, 0.025) %>%
+          unname(), 
+        UCL = quantile(x, 0.975) %>%
+          unname()
+      )
+    }
+  ) %>%
+  t() %>%
+  as.data.frame() %>%
+  rownames_to_column("Contrast") %>%
+  extract(
+    Contrast, 
+    c("Status", "Period", "Lights", "Renovation"), 
+    "(.*):(.*):(.*):(.*)"
+  ) %>%
+  mutate(
+    Period = ifelse(
+      Period == "2016",
+      Renovation,
+      Period
+    ) %>%
+      factor(
+        levels = c("80's", "no", "yes"),
+        labels = c("80's", "2016", "2016 with\nrenovation")
+      ),
+    Lights = factor(Lights, levels = levels(status$Lights))
+  )
+```
+
+```{r renovation-model, fig.cap = "Estimated cumulative probability"}
+ggplot(
+  cumulative_prediction, 
+  aes(
+    x = Lights, 
+    y = Mean, ymin = LCL, ymax = UCL, 
+    colour = Period
+  )
+) +
+  geom_errorbar(position = position_dodge(width = 0.5)) +
+  geom_point(position = position_dodge(width = 0.5)) +
+  scale_x_discrete("Light status 2016") +
+  scale_y_continuous(
+    "Estimated cumulative probability",
+    labels = percent, 
+    limits = 0:1
+  ) + 
+  facet_wrap(~Status)
 ```
