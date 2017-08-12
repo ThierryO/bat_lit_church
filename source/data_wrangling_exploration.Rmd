@@ -22,7 +22,7 @@ library(DT)
 raw_data <- read_excel("../original/rsos161077supp1.xlsx", n_max = 111) %>%
   slice(-1) %>%
   select(
-    Church = 1, Lights = 10, Status80 = 5, Status16 = 11
+    Church = 1, Lights = 10, Status80 = 5, Status16 = 11, Comment = 13
   )
 ```
 
@@ -34,21 +34,8 @@ datatable(raw_data)
 status <- raw_data %>%
   mutate(
     Church = factor(Church),
-    Lights = factor(
-      Lights, 
-      levels = c("not", "half", "full")
-    ),
-    Paired = !is.na(Status80) & !is.na(Status16),
-    Status80 = factor(
-      Status80, 
-      levels = c("no bats", "used", "colony"),
-      ordered = TRUE
-    ),
-    Status16 = gsub("\\?", "", Status16) %>%
-      factor(
-        levels = c("no bats", "used", "colony"),
-        ordered = TRUE
-      ) 
+    Status16 = gsub("\\?", "", Status16),
+    Renovated = grepl("renov", Comment)
   ) %>%
   gather("Period", "Status", Status80, Status16) %>%
   filter(!is.na(Status)) %>%
@@ -58,27 +45,28 @@ status <- raw_data %>%
       levels = c(TRUE, FALSE),
       labels = c("80's", "2016")
     ),
+    Lights = ifelse(
+      Period == "80's",
+      "not",
+      Lights
+    ) %>%
+      factor(
+        levels = c("not", "half", "full")
+      ),
+    Renovated = ifelse(
+      Period == "80's",
+      FALSE,
+      Renovated
+    ),
     Status = factor(
       Status,
       levels = c("no bats", "used", "colony"),
       ordered = TRUE
     ) 
-
+  ) %>%
+  select(
+    Church, Status, Period, Lights, Renovated
   )
-```
-
-```{r}
-status %>%
-  count(Paired, Period, Status) %>%
-  spread(Status, n) %>%
-  kable()
-```
-
-```{r}
-status %>%
-  count(Paired, Status, Period, Lights) %>%
-  spread(Lights, n, fill = 0) %>%
-  kable()
 ```
 
 ```{r}
