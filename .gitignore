@@ -5,3 +5,5 @@
 *.Rproj
 *.html
 output
+*_files
+*.log
