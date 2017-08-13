@@ -51,20 +51,23 @@ lineno: false
 
 ---
 
-```{r include = FALSE}
+```{r load-packages, include = FALSE}
 library(knitr)
 opts_chunk$set(
   cache = TRUE,
   autodep = TRUE,
+  fig.width = 4,
+  fig.height = 2,
   echo = FALSE,
   message = FALSE
 )
 library(tidyverse)
 library(ordinal)
 library(scales)
+theme_set(theme_grey(base_size = 6))
 ```
 
-```{r}
+```{r load-data}
 status <- read_csv("../../data/status.csv") %>%
   mutate(
     Church = factor(Church),
@@ -98,13 +101,100 @@ contrasts <- function(model, contrast, n = 1000){
 }
 ```
 
-```{r}
-current_model <- clm(Status ~ Lights, data = status, subset = Period == "2016")
-drop1(current_model, test = "Chisq")
-summary(current_model)
+# The 2016 survey
+
+```{r current-fisher}
+current_cont <- status %>%
+  filter(Period == "2016")
+current_p <- fisher.test(current_cont$Status, current_cont$Lights)$p.value %>%
+  round(4)
 ```
 
-```{r}
+The 2016 survey hold information on the presence of bats and the lights on the churches. Both variables can be represented as ordinal variables. The presence of the bats is recorded as `no bats` < `used` < `colony`. The light status is `dark` < `partly lit` < `fully lit`. After calculating a contigency table (tab \@ref(tab:current-contigency)), we can apply Fisher's exact test ($p = `r current_p`$). The interpretation of the value is limited: we reject the null hypothesis that the presence of bats and the light status are independent. It doesn't yield information on the effect size. To get arround this, the 3x3 contingency table was recombined in several 2x2 tables. Each of those were subjected to Fisher's extact test and the effect size was based on interpretation of the 2x2 tables. We found 2 such test in the manuscript [@Rydell] and 4 in the dataset.
+
+```{r current-contigency}
+crosstab <- current_cont %>%
+  mutate(
+    Lights = as.character(Lights),
+    Status = as.character(Status)
+  ) %>%
+  count(Lights, Status)
+crosstab %>%
+  group_by(Lights) %>%
+  summarise(
+    Status = "total",
+    n = sum(n)
+  ) %>%
+  bind_rows(
+    crosstab %>%
+      group_by(Status) %>%
+      summarise(
+        Lights = "total",
+        n = sum(n)
+      ),
+    crosstab %>%
+      summarise(
+        Status = "total",
+        Lights = "total",
+        n = sum(n)
+      ),
+    crosstab
+  ) %>%
+  mutate(
+    Status = factor(
+      Status, 
+      levels = c("no bats", "used", "colony", "total")
+    ),
+    Lights = factor(
+      Lights, 
+      levels = c("dark", "partly lit", "fully lit", "total")
+    )
+  ) %>%
+  spread(Status, n) %>%
+  kable(caption = "Contingenty table for the 2016 survey")
+```
+
+```{r current-ordinal}
+current_model <- clm(Status ~ Lights, data = status, subset = Period == "2016")
+current_lrt <- drop1(current_model, test = "Chisq")
+current_lrt <- sprintf(
+  "$\\chi^2_%i$=%.4g, p = %.2g", 
+  current_lrt[2, "Df"], 
+  current_lrt[2, "LRT"], 
+  current_lrt[2, "Pr(>Chi)"]
+)
+```
+
+Ordinal data can be analysed with cumulative logit models[@ordinal]. The general form is given in eq \@ref(eq:cum-logit). In this case the presence of bats is the response variable and the light status is used as covariate. We can use a likelihood ratio test to test for the overall effect of the light status (`r current_lrt`). The effect size is quantified through the coefficients (tab. \@ref(tab:current-coef)). The predictions (fig. \@ref(fig:current-prediction)) yield the same values as fig. 2 in [@Rydell] but fig. \@ref(fig:current-prediction) adds confidence intervals on top.
+
+\begin{equation} 
+  \mbox{logit}(P(Y_i <= j)) = \theta_j - x_i^T\beta
+  (\#eq:cum-logit)
+\end{equation} 
+
+```{r current-coef}
+current_or <- confint(current_model) %>%
+  cbind(mean = coef(current_model)[3:4]) %>%
+  exp() %>%
+  as.data.frame() %>%
+  select(mean = 3, lcl = 1, ucl = 2) %>%
+  mutate(
+    print = sprintf("$%.2f (%.2f; %.2f)$", mean, lcl, ucl)
+  )
+current_model %>%
+  summary() %>%
+  coef() %>%
+  kable(
+    digits = c(3, 3, 2, 4),
+    caption = "Coefficients of the cumulative logit model for the 2016 survey."
+  )
+```
+
+## Interpretation
+
+Placing lights all around the exterior has strong negative effects on the presences of bats. The odds ratio for having no bats when fully lit is `r current_or$print[2]` compared to dark churches. The difference between dark and partly lit churches is unclear (odds ratio: `r current_or$print[1]`).
+
+```{r current-contrast}
 cumulative_logit <- contrasts(
   current_model, 
   contrast =  rbind(
@@ -137,7 +227,7 @@ cumulative_prediction <- cumulative_logit %>%
   mutate(Lights = factor(Lights, levels = levels(status$Lights)))
 ```
 
-```{r base-model, fig.cap = "Estimated cumulative probability based on the 2016 dataset."}
+```{r current-prediction, fig.cap = "Estimated cumulative probability based on the 2016 survey."}
 ggplot(
   cumulative_prediction, 
   aes(
@@ -146,16 +236,20 @@ ggplot(
     colour = Status
   )
 ) +
-  geom_errorbar(position = position_dodge(width = 0.5)) +
-  geom_point(position = position_dodge(width = 0.5)) +
+  geom_errorbar(position = position_dodge(width = 0.6)) +
+  geom_point(position = position_dodge(width = 0.6)) +
   scale_y_continuous(
     "Estimated cumulative probability",
     labels = percent, 
     limits = 0:1
+  ) +
+  scale_color_manual(
+    values = c("colony" = "black", "colony or used" = "darkgrey")
   )
 ```
 
-  
+# Comparison with 1980s survey
+
 ```{r}
 status_model <- clmm(Status ~ Period + Lights + (1|Church), data = status)
 drop1(status_model, test = "Chisq")
@@ -215,6 +309,8 @@ ggplot(
   ) + 
   coord_flip()
 ```
+
+# Effect of renovations
 
 ```{r}
 status %>%
@@ -307,3 +403,5 @@ ggplot(
   ) + 
   facet_wrap(~Status)
 ```
+
+# Conclusions
