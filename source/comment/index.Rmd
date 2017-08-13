@@ -1,18 +1,15 @@
 ---
 title: "Basic or advanced statistics"
+site: bookdown::bookdown_site
 output: 
-  pdf_document: 
-    keep_tex: TRUE
-  html_notebook: default
+  bookdown::pdf_book
 ---
 
 ```{r include = FALSE}
 library(knitr)
 opts_chunk$set(
   echo = FALSE,
-  message = FALSE,
-  dev = c("pdf", "png"),
-  dpi = 300
+  message = FALSE
 )
 library(tidyverse)
 library(ordinal)
@@ -20,7 +17,7 @@ library(scales)
 ```
 
 ```{r}
-status <- read_csv("../data/status.csv") %>%
+status <- read_csv("../../data/status.csv") %>%
   mutate(
     Church = factor(Church),
     Lights = factor(
@@ -151,7 +148,7 @@ cumulative_prediction <- cumulative_logit %>%
   extract(Contrast, c("Status", "Period", "Lights"), "(.*):(.*):(.*)")
 ```
 
-```{r base-model, fig.cap = "Estimated cumulative probability"}
+```{r time-model, fig.cap = "Estimated cumulative probability"}
 ggplot(
   cumulative_prediction, 
   aes(
