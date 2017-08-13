@@ -1,13 +1,61 @@
 ---
-title: "Basic or advanced statistics"
+title: "Comment on 'Age of enlightenment: long-term effects of outdoor aesthetic lights on bats in churches'"
 site: bookdown::bookdown_site
 output: 
-  bookdown::pdf_book
+  bookdown::pdf_book:
+    base_format: INBOmd::rsos_article
+
+author:
+  - name: T Onkelinx
+    affiliation: "1"
+address:
+  - code: "1"
+    address: Research Institute for Nature and Forest, Kliniekstraat 25, 1070 Anderlecht, Belgium
+
+corresp_author_name:  "T. Onkelinx"
+corresp_author_email: "thierry.onkelinx@inbo.be"
+
+subject:
+  - "ecology"
+  - "environmental science"
+  - "behaviour"
+
+keywords:
+  - global change
+  - energy
+  - cultural heritage
+  - historic buildings
+  - biodiversity
+  - light pollution
+
+abstract: |
+  This comment reanalyses the data presented in [@Rydell] which wre analyses using only very basic statistics as Fisher's extact test and McNemar's test. We would like to demonstrate how the use of more advanced statistical methods can make better use of the available data, quantify the observed effects and strengthen the conclusions in [@Rydell].
+
+first_page_text: |
+
+## Remove this if not required
+data_accessibility: |
+  The data and the code is available at https://github.com/thierryo/rydell_etal_2017
+
+author_contributions: |
+  T.O. made the analysis and wrote the draft.
+
+## Remove this if not required
+conflict_of_interest: |
+  The authors have no competing interests.
+
+bibliography: bibliography.bib
+
+## change to true to add optional line numbering
+lineno: false
+
 ---
 
 ```{r include = FALSE}
 library(knitr)
 opts_chunk$set(
+  cache = TRUE,
+  autodep = TRUE,
   echo = FALSE,
   message = FALSE
 )
