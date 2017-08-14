@@ -29,7 +29,7 @@ keywords:
   - light pollution
 
 abstract: |
-  This comment reanalyses the data presented in [@Rydell] which wre analyses using only very basic statistics as Fisher's extact test and McNemar's test. We would like to demonstrate how the use of more advanced statistical methods can make better use of the available data, quantify the observed effects and strengthen the conclusions in [@Rydell].
+  This comment reanalyses the data presented in [@Rydell] which were analysed using only very basic statistics as Fisher's extact test and McNemar's test. We would like to demonstrate how the use of more advanced statistical methods can make better use of the available data, quantify the observed effects and strengthen the conclusions in [@Rydell].
 
 first_page_text: |
 
@@ -78,7 +78,8 @@ status <- read_csv("../../data/status.csv") %>%
     ),
     Survey = factor(
       Survey,
-      levels = c("80's", "2016")
+      levels = c("80's", "2016"),
+      labels = c("1980s", "2016")
     ),
     Status = factor(
       Status,
@@ -111,7 +112,7 @@ current_p <- fisher.test(current_cont$Status, current_cont$Lights)$p.value %>%
   round(4)
 ```
 
-The 2016 survey hold information on the presence of bats and the lights on the churches. Both variables can be represented as ordinal variables. The presence of the bats is recorded as `no bats` < `used` < `colony`. The light status is `dark` < `partly lit` < `fully lit`. After calculating a contigency table (tab \@ref(tab:current-contigency)), we can apply Fisher's exact test ($p = `r current_p`$). The interpretation of the value is limited: we reject the null hypothesis that the presence of bats and the light status are independent. It doesn't yield information on the effect size. To get arround this, the 3x3 contingency table was recombined in several 2x2 tables. Each of those were subjected to Fisher's extact test and the effect size was based on interpretation of the 2x2 tables. We found 2 such test in the manuscript [@Rydell] and 4 in the dataset.
+The 2016 survey holds information on the presence of bats and the light status of the churches. Both variables can be represented as ordinal variables. The presence of the bats is recorded as `no bats` < `used` < `colony`. The light status is `dark` < `partly lit` < `fully lit`. After calculating a contigency table (tab \@ref(tab:current-contigency)), we can apply Fisher's exact test ($p = `r current_p`$). The interpretation of the test is limited: we reject the null hypothesis that the presence of bats and the light status are independent. It doesn't yield information on the effect size. To get arround this, the 3x3 contingency table was recombined in several 2x2 tables. Each of those were subjected to Fisher's extact test and the effect size was based on interpretation of the 2x2 tables. We found 2 such tests in the manuscript [@Rydell] and 4 in the dataset.
 
 ```{r current-contigency}
 crosstab <- current_cont %>%
@@ -166,7 +167,7 @@ current_lrt <- sprintf(
 )
 ```
 
-Ordinal data can be analysed with cumulative logit models[@ordinal]. The general form is given in eq \@ref(eq:cum-logit). In this case the presence of bats is the response variable and the light status is used as covariate. We can use a likelihood ratio test to test for the overall effect of the light status (`r current_lrt`). The effect size is quantified through the coefficients (tab. \@ref(tab:current-coef)). The predictions (fig. \@ref(fig:current-prediction)) yield the same values as fig. 2 in [@Rydell] but fig. \@ref(fig:current-prediction) adds confidence intervals on top.
+Another option is to analyse ordinal data with cumulative logit models[@ordinal]. The general form is given in eq \@ref(eq:cum-logit). In this case the presence of bats is the response variable and the light status is used as covariate. We can use a likelihood ratio test (LRT) to test for the overall effect of the light status (`r current_lrt`). The effect size is quantified through the coefficients (tab. \@ref(tab:current-coef)). The predictions (fig. \@ref(fig:current-prediction)) yield the same values as fig. 2 in [@Rydell] but fig. \@ref(fig:current-prediction) adds confidence intervals on top.
 
 \begin{equation} 
   \mbox{logit}(P(Y_i <= j)) = \theta_j - x_i^T\beta
@@ -193,7 +194,7 @@ current_model %>%
 
 ## Interpretation
 
-Placing lights all around the exterior has strong negative effects on the presences of bats. The odds ratio for having no bats when fully lit is `r current_or$print[2]` compared to dark churches. The difference between dark and partly lit churches is unclear (odds ratio: `r current_or$print[1]`).
+Placing lights all around the exterior has strong negative effects on the presences of bats. The odds ratio (OR) for having no bats when fully lit is `r current_or$print[2]` compared to dark churches. The difference between dark and partly lit churches is unclear (OR: `r current_or$print[1]`).
 
 ```{r current-contrast}
 cumulative_logit <- contrasts(
@@ -239,6 +240,7 @@ ggplot(
 ) +
   geom_errorbar(position = position_dodge(width = 0.6)) +
   geom_point(position = position_dodge(width = 0.6)) +
+  scale_x_discrete("Light status") +
   scale_y_continuous(
     "Estimated cumulative probability",
     labels = percent, 
@@ -251,30 +253,112 @@ ggplot(
 
 # Comparison with 1980s survey
 
-During the 2016 survey, all 60 churches of the 1980s survey have been revisted and 50 additional churches. The authors take the repeated measures into account by using a McNemar change test. This test works only on 2x2 tables. 
+During the 2016 survey, all 60 churches of the 1980s survey have been revisted and 50 additional churches. The authors take the repeated measures into account by using McNemar's test[@Rydell]. This test works only on 2x2 tables. 
 
-A better alternative would be to use cumulative logit mixed models[@ordinal]. In this case we would use survey and light status
+A better alternative would be to use cumulative logit mixed models[@ordinal]. In this case we would use survey and light status as fixed effects and church as a random effect. This random effect takes the paired nature of the dataset into account. Note that this model can separate the survey effect and the light status effect. The survey effect would an overall decline in bat between surveys when the church remains dark. The interaction between survey and light status is not relevant since all churches were unlit in the 1980s survey. While the McNemar test requires all data to be paired, the mixed model does not. Hence we can also use the data on the churches surveyed only in 2016.
 
-```{r}
-status_model <- clmm(Status ~ Survey + Lights + (1|Church), data = status)
-drop1(status_model, test = "Chisq")
-summary(status_model)
+```{r survey-ordinal}
+survey_model0 <- clmm(
+  Status ~ Survey + Lights + (1|Church), 
+  data = status, 
+  subset = n == 2
+)
+survey_model <- clmm(Status ~ Survey + Lights + (1|Church), data = status)
+survey_lrt0 <- drop1(survey_model0, test = "Chisq")
+survey_lrt0 <- sprintf(
+  "$\\chi^2_%i$=%.4g, p = %.2g", 
+  survey_lrt0[2:3, "Df"], 
+  survey_lrt0[2:3, "LRT"], 
+  survey_lrt0[2:3, "Pr(>Chi)"]
+)
+survey_lrt <- drop1(survey_model, test = "Chisq")
+survey_lrt$`Pr(>Chi)` <- ifelse(
+  survey_lrt$`Pr(>Chi)` < 0.0001,
+  "p < 0.0001",
+  sprintf("p = %.2g", survey_lrt$`Pr(>Chi)`)
+)
+survey_lrt <- sprintf(
+  "$\\chi^2_%i$=%.4g, %s", 
+  survey_lrt[2:3, "Df"], 
+  survey_lrt[2:3, "LRT"], 
+  survey_lrt[2:3, "Pr(>Chi)"]
+)
 ```
 
-```{r}
-cumulative_logit <- contrasts(
-  status_model, 
-  contrast =  rbind(
-    "colony:80's:dark" = c(1, 0, 0, 0, 0),
-    "colony:2016:dark" = c(1, 0, -1, 0, 0),
-    "colony:2016:partly lit" = c(1, 0, -1, -1, 0),
-    "colony:2016:fully lit" = c(1, 0, -1, 0, -1),
-    "colony or used:80's:dark" = c(0, 1, 0, 0, 0),
-    "colony or used:2016:dark" = c(0, 1, -1, 0, 0),
-    "colony or used:2016:partly lit" = c(0, 1, -1, -1, 0),
-    "colony or used:2016:fully lit" = c(0, 1, -1, 0, -1)
+Let's see what the impact is of using a larger dataset. The LRT for the survey effect on the paired data is `r survey_lrt0[1]` and `r survey_lrt[1]` for the full data. Likewise we have `r survey_lrt0[2]` and `r survey_lrt[2]` for the light status. The comparison between the model coefficients is given in tab \@ref(tab:survey-coef). At first glance some of the coefficient are different. The influence on the predictions is depicted in fig. \@ref(fig:survey-prediction). The differences in coefficient and predictions might be due a possible bias in the 1980s survey, since using only the paired data yields higher estimates. Note that the confidence interval on the predictions are more narrow when we use the full data and that the estimates of the paired dataset are within the confidence intervals of the full data.
+
+```{r survey-coef}
+survey_or <- confint(survey_model) %>%
+  cbind(mean = coef(survey_model)) %>%
+  exp() %>%
+  as.data.frame() %>%
+  select(mean = 3, lcl = 1, ucl = 2) %>%
+  mutate(
+    print = sprintf("$%.2f (%.2f; %.2f)$", mean, lcl, ucl)
   )
-)
+survey_model0 %>%
+  summary() %>%
+  coef() %>%
+  as.data.frame() %>%
+  rownames_to_column() %>%
+  select(
+    Parameter = 1, 
+    "Pair Es" = 2, 
+    "Pair SE" = 3, 
+    "Pair z" = 4,
+    "Pair p" = 5
+  ) %>%
+  bind_cols(
+    survey_model %>%
+      summary() %>%
+      coef() %>%
+      as.data.frame() %>%
+      select(
+        "All Es" = 1, 
+        "All SE" = 2, 
+        "All z" = 3,
+        "All p" = 4
+      )
+  ) %>%
+  kable(
+    digits = c(0, 3, 3, 2, 4, 3, 3, 2, 4),
+    caption = "Comparison between the coefficients of the cumulative logit mixed models for the paired dataset and the full dataset."
+  )
+```
+
+## Interpretation^[Based on the full data.]
+
+The difference in odds for finding no bats between both surveys is unclear (OR: `r survey_or$print[3]`). Likewise is the difference between dark and partly lit churches in 2016 (OR: `r survey_or$print[4]`). The odds highly increase when changing for a dark to a full lit church (OR: `r survey_or$print[5]`).
+
+```{r survey-contrast}
+cumulative_logit <- contrasts(
+  survey_model, 
+  contrast =  rbind(
+    "all:colony:1980s:dark" = c(1, 0, 0, 0, 0),
+    "all:colony:2016:dark" = c(1, 0, -1, 0, 0),
+    "all:colony:2016:partly lit" = c(1, 0, -1, -1, 0),
+    "all:colony:2016:fully lit" = c(1, 0, -1, 0, -1),
+    "all:colony or used:1980s:dark" = c(0, 1, 0, 0, 0),
+    "all:colony or used:2016:dark" = c(0, 1, -1, 0, 0),
+    "all:colony or used:2016:partly lit" = c(0, 1, -1, -1, 0),
+    "all:colony or used:2016:fully lit" = c(0, 1, -1, 0, -1)
+  )
+) %>%
+  rbind(
+    contrasts(
+      survey_model0, 
+      contrast =  rbind(
+        "paired:colony:1980s:dark" = c(1, 0, 0, 0, 0),
+        "paired:colony:2016:dark" = c(1, 0, -1, 0, 0),
+        "paired:colony:2016:partly lit" = c(1, 0, -1, -1, 0),
+        "paired:colony:2016:fully lit" = c(1, 0, -1, 0, -1),
+        "paired:colony or used:1980s:dark" = c(0, 1, 0, 0, 0),
+        "paired:colony or used:2016:dark" = c(0, 1, -1, 0, 0),
+        "paired:colony or used:2016:partly lit" = c(0, 1, -1, -1, 0),
+        "paired:colony or used:2016:fully lit" = c(0, 1, -1, 0, -1)
+      )
+    )
+  )
 cumulative_prediction <- cumulative_logit %>%
   plogis() %>%
   apply(
@@ -292,53 +376,53 @@ cumulative_prediction <- cumulative_logit %>%
   t() %>%
   as.data.frame() %>%
   rownames_to_column("Contrast") %>%
-  extract(Contrast, c("Status", "Survey", "Lights"), "(.*):(.*):(.*)")
+  extract(
+    Contrast, 
+    c("Dataset", "Status", "Survey", "Lights"), 
+    "(.*):(.*):(.*):(.*)"
+  ) %>%
+  mutate(Lights = factor(Lights, levels = levels(status$Lights)))
 ```
 
-```{r time-model, fig.cap = "Estimated cumulative probability"}
+```{r survey-prediction, fig.cap = "Estimated cumulative probability based on both surveys."}
 ggplot(
   cumulative_prediction, 
   aes(
     x = Lights, 
     y = Mean, ymin = LCL, ymax = UCL, 
-    colour = Status, 
-    shape = Survey, linetype = Survey
+    colour = Survey, 
+    shape = Dataset, linetype = Dataset
   )
 ) +
   geom_errorbar(position = position_dodge(width = 0.5)) +
   geom_point(position = position_dodge(width = 0.5)) +
+  scale_x_discrete("Light status") +
   scale_y_continuous(
     "Estimated cumulative probability",
     labels = percent, 
     limits = 0:1
-  ) + 
-  coord_flip()
+  ) +
+  scale_color_manual(
+    values = c("2016" = "black", "1980s" = "darkgrey")
+  ) +
+  facet_wrap(~Status)
 ```
 
 # Effect of renovations
 
-```{r}
-status %>%
-  filter(Survey == "2016") %>%
-  count(Lights, Renovated, Status)
-```
-
-
-```{r}
+```{r renovation-ordinal}
 renovation_model <- clmm(
   Status ~ Survey + Lights + Renovated + (1|Church), 
   data = status
 )
-drop1(renovation_model, test = "Chisq")
-summary(renovation_model)
 ```
 
-```{r}
+```{r renovation-contrast}
 cumulative_logit <- contrasts(
   renovation_model, 
   contrast =  rbind(
-    "colony:80's:dark:no" = c(1, 0, 0, 0, 0, 0),
-    "colony or used:80's:dark:no" = c(0, 1, 0, 0, 0, 0),
+    "colony:1980s:dark:no" = c(1, 0, 0, 0, 0, 0),
+    "colony or used:1980s:dark:no" = c(0, 1, 0, 0, 0, 0),
     "colony:2016:dark:no" = c(1, 0, -1, 0, 0, 0),
     "colony:2016:partly lit:no" = c(1, 0, -1, -1, 0, 0),
     "colony:2016:fully lit:no" = c(1, 0, -1, 0, -1, 0),
@@ -382,8 +466,8 @@ cumulative_prediction <- cumulative_logit %>%
       Survey
     ) %>%
       factor(
-        levels = c("80's", "no", "yes"),
-        labels = c("80's", "2016", "2016 with\nrenovation")
+        levels = c("1980s", "no", "yes"),
+        labels = c("1980s", "2016", "2016 with\nrenovation")
       ),
     Lights = factor(Lights, levels = levels(status$Lights))
   )
@@ -400,7 +484,7 @@ ggplot(
 ) +
   geom_errorbar(position = position_dodge(width = 0.5)) +
   geom_point(position = position_dodge(width = 0.5)) +
-  scale_x_discrete("Light status 2016") +
+  scale_x_discrete("Light status") +
   scale_y_continuous(
     "Estimated cumulative probability",
     labels = percent, 
