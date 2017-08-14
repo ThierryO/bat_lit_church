@@ -76,8 +76,8 @@ status <- read_csv("../../data/status.csv") %>%
       levels = c("not", "half", "full"),
       labels = c("dark", "partly lit", "fully lit")
     ),
-    Period = factor(
-      Period,
+    Survey = factor(
+      Survey,
       levels = c("80's", "2016")
     ),
     Status = factor(
@@ -85,7 +85,8 @@ status <- read_csv("../../data/status.csv") %>%
       levels = c("colony", "used", "no bats"),
       ordered = TRUE
     )
-  )
+  ) %>%
+  add_count(Church)
 ```
 
 ```{r}
@@ -105,7 +106,7 @@ contrasts <- function(model, contrast, n = 1000){
 
 ```{r current-fisher}
 current_cont <- status %>%
-  filter(Period == "2016")
+  filter(Survey == "2016")
 current_p <- fisher.test(current_cont$Status, current_cont$Lights)$p.value %>%
   round(4)
 ```
@@ -114,7 +115,7 @@ The 2016 survey hold information on the presence of bats and the lights on the c
 
 ```{r current-contigency}
 crosstab <- current_cont %>%
-  mutate(
+  transmute(
     Lights = as.character(Lights),
     Status = as.character(Status)
   ) %>%
@@ -151,11 +152,11 @@ crosstab %>%
     )
   ) %>%
   spread(Status, n) %>%
-  kable(caption = "Contingenty table for the 2016 survey")
+  kable(caption = "Contingency table for the 2016 survey")
 ```
 
 ```{r current-ordinal}
-current_model <- clm(Status ~ Lights, data = status, subset = Period == "2016")
+current_model <- clm(Status ~ Lights, data = status, subset = Survey == "2016")
 current_lrt <- drop1(current_model, test = "Chisq")
 current_lrt <- sprintf(
   "$\\chi^2_%i$=%.4g, p = %.2g", 
@@ -250,8 +251,12 @@ ggplot(
 
 # Comparison with 1980s survey
 
+During the 2016 survey, all 60 churches of the 1980s survey have been revisted and 50 additional churches. The authors take the repeated measures into account by using a McNemar change test. This test works only on 2x2 tables. 
+
+A better alternative would be to use cumulative logit mixed models[@ordinal]. In this case we would use survey and light status
+
 ```{r}
-status_model <- clmm(Status ~ Period + Lights + (1|Church), data = status)
+status_model <- clmm(Status ~ Survey + Lights + (1|Church), data = status)
 drop1(status_model, test = "Chisq")
 summary(status_model)
 ```
@@ -287,7 +292,7 @@ cumulative_prediction <- cumulative_logit %>%
   t() %>%
   as.data.frame() %>%
   rownames_to_column("Contrast") %>%
-  extract(Contrast, c("Status", "Period", "Lights"), "(.*):(.*):(.*)")
+  extract(Contrast, c("Status", "Survey", "Lights"), "(.*):(.*):(.*)")
 ```
 
 ```{r time-model, fig.cap = "Estimated cumulative probability"}
@@ -297,7 +302,7 @@ ggplot(
     x = Lights, 
     y = Mean, ymin = LCL, ymax = UCL, 
     colour = Status, 
-    shape = Period, linetype = Period
+    shape = Survey, linetype = Survey
   )
 ) +
   geom_errorbar(position = position_dodge(width = 0.5)) +
@@ -314,14 +319,14 @@ ggplot(
 
 ```{r}
 status %>%
-  filter(Period == "2016") %>%
+  filter(Survey == "2016") %>%
   count(Lights, Renovated, Status)
 ```
 
 
 ```{r}
 renovation_model <- clmm(
-  Status ~ Period + Lights + Renovated + (1|Church), 
+  Status ~ Survey + Lights + Renovated + (1|Church), 
   data = status
 )
 drop1(renovation_model, test = "Chisq")
@@ -367,14 +372,14 @@ cumulative_prediction <- cumulative_logit %>%
   rownames_to_column("Contrast") %>%
   extract(
     Contrast, 
-    c("Status", "Period", "Lights", "Renovation"), 
+    c("Status", "Survey", "Lights", "Renovation"), 
     "(.*):(.*):(.*):(.*)"
   ) %>%
   mutate(
-    Period = ifelse(
-      Period == "2016",
+    Survey = ifelse(
+      Survey == "2016",
       Renovation,
-      Period
+      Survey
     ) %>%
       factor(
         levels = c("80's", "no", "yes"),
@@ -390,7 +395,7 @@ ggplot(
   aes(
     x = Lights, 
     y = Mean, ymin = LCL, ymax = UCL, 
-    colour = Period
+    colour = Survey
   )
 ) +
   geom_errorbar(position = position_dodge(width = 0.5)) +

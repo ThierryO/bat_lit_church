@@ -37,16 +37,16 @@ status <- raw_data %>%
     Status16 = gsub("\\?", "", Status16),
     Renovated = grepl("renov", Comment)
   ) %>%
-  gather("Period", "Status", Status80, Status16) %>%
+  gather("Survey", "Status", Status80, Status16) %>%
   filter(!is.na(Status)) %>%
   mutate(
-    Period = factor(
-      Period == "Status80", 
+    Survey = factor(
+      Survey == "Status80", 
       levels = c(TRUE, FALSE),
       labels = c("80's", "2016")
     ),
     Lights = ifelse(
-      Period == "80's",
+      Survey == "80's",
       "not",
       Lights
     ) %>%
@@ -54,7 +54,7 @@ status <- raw_data %>%
         levels = c("not", "half", "full")
       ),
     Renovated = ifelse(
-      Period == "80's",
+      Survey == "80's",
       FALSE,
       Renovated
     ),
@@ -65,7 +65,7 @@ status <- raw_data %>%
     ) 
   ) %>%
   select(
-    Church, Status, Period, Lights, Renovated
+    Church, Status, Survey, Lights, Renovated
   )
 ```
 
