@@ -85,6 +85,11 @@ status <- read_csv("../../data/status.csv") %>%
       levels = c("80's", "2016"),
       labels = c("1980s", "2016")
     ),
+    Renovated = factor(
+      Renovated, 
+      levels = c(FALSE, TRUE), 
+      labels = c("no", "yes")
+    ),
     Status = factor(
       Status,
       levels = c("colony", "used", "no bats"),
@@ -187,7 +192,7 @@ current_or <- confint(current_model) %>%
   as.data.frame() %>%
   select(mean = 3, lcl = 1, ucl = 2) %>%
   mutate(
-    print = sprintf("$%.2f (%.2f; %.2f)$", mean, lcl, ucl)
+    print = sprintf("$OR:%.2f (%.2f; %.2f)$", mean, lcl, ucl)
   )
 current_model %>%
   summary() %>%
@@ -200,12 +205,12 @@ current_model %>%
 
 ### Interpretation
 
-Placing lights all around the exterior has strong negative effects on the presences of bats. The odds ratio (OR) for having no bats when fully lit is `r current_or$print[2]` compared to dark churches. The difference between dark and partly lit churches is unclear (OR: `r current_or$print[1]`).
+Placing lights all around the exterior has strong negative effects on the presences of bats. The odds ratio ($OR$) for having no bats when fully lit is `r current_or$print[2]` compared to dark churches. The difference between dark and partly lit churches is unclear^[Note that $1$ is included in the confidence interval. $OR = 1$ implies that both odds are equal, hence no effect.] `r current_or$print[1]`.
 
 ```{r current-contrast}
 cumulative_logit <- contrasts(
   current_model, 
-  contrast =  rbind(
+  contrast = rbind(
     "colony:dark" = c(1, 0, 0, 0),
     "colony:partly lit" = c(1, 0, -1, 0),
     "colony:fully lit" = c(1, 0, 0, -1),
@@ -300,7 +305,7 @@ survey_or <- confint(survey_model) %>%
   as.data.frame() %>%
   select(mean = 3, lcl = 1, ucl = 2) %>%
   mutate(
-    print = sprintf("$%.2f (%.2f; %.2f)$", mean, lcl, ucl)
+    print = sprintf("$OR:%.2f (%.2f; %.2f)$", mean, lcl, ucl)
   )
 survey_model0 %>%
   summary() %>%
@@ -334,7 +339,7 @@ survey_model0 %>%
 
 ### Interpretation^[Based on the full data.]
 
-The difference in odds for finding no bats between both surveys is unclear (OR: `r survey_or$print[3]`). Likewise is the difference between dark and partly lit churches in 2016 (OR: `r survey_or$print[4]`). The odds highly increase when changing for a dark to a full lit church (OR: `r survey_or$print[5]`).
+The difference in odds for finding no bats between both surveys is unclear `r survey_or$print[3]`. Likewise is the difference between dark and partly lit churches in 2016 `r survey_or$print[4]`. The odds highly increase when changing for a dark to a full lit church `r survey_or$print[5]`.
 
 ```{r survey-contrast}
 cumulative_logit <- contrasts(
@@ -416,18 +421,47 @@ ggplot(
 
 ## Effect of renovations
 
+We can used only the paired dataset for this analysis because the renovation status is only available for churches from the 1980s survey. We added the renovation status as a fixed effect to the model. The interaction between lights status and renovation status would be relevant, but that gave a singular model. 
+
 ```{r renovation-ordinal}
 renovation_model <- clmm(
   Status ~ Survey + Lights + Renovated + (1|Church), 
   data = status,
   subset = n == 2
 )
+renovation_lrt <- drop1(renovation_model, test = "Chisq")
+renovation_lrt <- sprintf(
+  "$\\chi^2_%i$=%.4g, p=%.2g", 
+  renovation_lrt[-1, "Df"], 
+  renovation_lrt[-1, "LRT"], 
+  renovation_lrt[-1, "Pr(>Chi)"]
+)
+```
+
+```{r renovation-coef}
+renovation_or <- confint(renovation_model) %>%
+  cbind(mean = coef(renovation_model)) %>%
+  exp() %>%
+  as.data.frame() %>%
+  select(mean = 3, lcl = 1, ucl = 2) %>%
+  mutate(
+    print = sprintf("$OR:%.2f (%.2f; %.2f)$", mean, lcl, ucl)
+  )
+renovation_model %>%
+  summary() %>%
+  coef() %>%
+  kable(
+    digits = c(3, 3, 2, 4),
+    caption = "Coefficients of the cumulative logit model for the renovation model."
+  )
 ```
 
 ```{r renovation-contrast}
 cumulative_logit <- contrasts(
   renovation_model, 
   contrast =  rbind(
+    "contrast:dark-renovated:fully lit-unrenovated" = c(0, 0, 0, 0, 1, -1),
+    "contrast:dark-renovated:partly lit-unrenovated" = c(0, 0, 0, 1, 0, -1),
     "colony:1980s:dark:no" = c(1, 0, 0, 0, 0, 0),
     "colony or used:1980s:dark:no" = c(0, 1, 0, 0, 0, 0),
     "colony:2016:dark:no" = c(1, 0, -1, 0, 0, 0),
@@ -444,7 +478,29 @@ cumulative_logit <- contrasts(
     "colony or used:2016:fully lit:yes" = c(0, 1, -1, 0, -1, -1)
   )
 )
+renovation_contrast <- cumulative_logit %>%
+  "["(1:2, ) %>%
+  exp() %>%
+  apply(
+    1, 
+    function(x){
+      c(
+        mean = mean(x), 
+        lcl = quantile(x, 0.025) %>%
+          unname(), 
+        ucl = quantile(x, 0.975) %>%
+          unname()
+      )
+    }
+  ) %>%
+  t() %>%
+  as.data.frame() %>%
+  mutate(
+    print = sprintf("$OR:%.2f (%.2f; %.2f)$", mean, lcl, ucl)
+  ) %>%
+  rownames_to_column("Contrast")
 cumulative_prediction <- cumulative_logit %>%
+  "["(-1:-2, ) %>%
   plogis() %>%
   apply(
     1, 
@@ -467,26 +523,22 @@ cumulative_prediction <- cumulative_logit %>%
     "(.*):(.*):(.*):(.*)"
   ) %>%
   mutate(
-    Survey = ifelse(
-      Survey == "2016",
-      Renovation,
-      Survey
-    ) %>%
-      factor(
-        levels = c("1980s", "no", "yes"),
-        labels = c("1980s", "2016", "2016 with\nrenovation")
-      ),
     Lights = factor(Lights, levels = levels(status$Lights))
   )
 ```
+### Interpretation
 
-```{r renovation-model, fig.cap = "Estimated cumulative probability"}
+We find no evidence for an effect between surveys `r renovation_or$print[3]` (LTR: `r renovation_lrt[1]`). The light status has a significant effect (LTR: `r renovation_lrt[2]`). We find an unclear effect of partly lit vs dark `r renovation_or$print[4]`, but a the odd for no bats between fully lit and dark increases `r renovation_or$print[5]`. Addionally after renovation, the odds for no bat increase `r renovation_or$print[6]` (LTR: `r renovation_lrt[3]`). The resulting predictions are given in fig. \@ref{fig:renovation-prediction}. We could wonder which is worse: a fully lit, non renovated church or a dark, renovated church. 
+After calculting the odds ratio `r renovation_contrast$print[1]`, we must conclude that we cannot make a hard statement that one is worse than the other.
+
+```{r renovation-prediction, fig.cap = "Estimated cumulative probability"}
 ggplot(
   cumulative_prediction, 
   aes(
     x = Lights, 
     y = Mean, ymin = LCL, ymax = UCL, 
-    colour = Survey
+    colour = Survey,
+    linetype = Renovation
   )
 ) +
   geom_errorbar(position = position_dodge(width = 0.5)) +
@@ -497,6 +549,9 @@ ggplot(
     labels = percent, 
     limits = 0:1
   ) + 
+  scale_color_manual(
+    values = c("2016" = "black", "1980s" = "darkgrey")
+  ) +
   facet_wrap(~Status)
 ```
 
