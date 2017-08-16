@@ -66,6 +66,7 @@ opts_chunk$set(
 )
 library(tidyverse)
 library(ordinal)
+library(mvtnorm)
 library(scales)
 theme_set(theme_grey(base_size = 6))
 ```
@@ -93,16 +94,13 @@ status <- read_csv("../../data/status.csv") %>%
   add_count(Church)
 ```
 
-```{r}
+```{r simulate_contrast}
 contrasts <- function(model, contrast, n = 1000){
-  cf <- summary(model)$coef
-  params <- rnorm(
-    n * nrow(cf), 
-    mean = cf[, "Estimate"], 
-    sd = cf[, "Std. Error"]
-  ) %>%
-    matrix(nrow = nrow(cf))
-  contrast %*% params
+  model %>%
+    vcov %>%
+    "["(names(model$coefficients), names(model$coefficients)) %>%
+    rmvnorm(n = n, mean = model$coefficients) %>%
+    tcrossprod(x = contrast)
 }
 ```
 # Material and methods
