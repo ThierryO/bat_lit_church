@@ -6,13 +6,13 @@ output:
     base_format: INBOmd::rsos_article
 
 author:
-  - name: T Onkelinx
+  - name: Thierry Onkelinx
     affiliation: "1"
 address:
   - code: "1"
     address: Research Institute for Nature and Forest, Kliniekstraat 25, 1070 Anderlecht, Belgium
 
-corresp_author_name:  "T. Onkelinx"
+corresp_author_name:  "Thierry Onkelinx"
 corresp_author_email: "thierry.onkelinx@inbo.be"
 
 subject:
@@ -27,9 +27,12 @@ keywords:
   - historic buildings
   - biodiversity
   - light pollution
+  - ordinal regression
 
 abstract: |
   This comment reanalyses the data presented in [@Rydell] which were analysed using only very basic statistics as Fisher's extact test and McNemar's test. We would like to demonstrate how the use of more advanced statistical methods can make better use of the available data, quantify the observed effects and strengthen the conclusions in [@Rydell].
+  
+  We have no intent to discrit the origal authors. Their analysis was basic but correct.
 
 first_page_text: |
 
@@ -102,8 +105,13 @@ contrasts <- function(model, contrast, n = 1000){
   contrast %*% params
 }
 ```
+# Material and methods
 
-# The 2016 survey
+The analysis is based on the original data[@Rydell]. The entire analysis is run in R 3.4.1 [@R]. The `tidyverse`[@tidyverse] collection of packages was used for the data import, data wrangling and data visualisation. `ordinal`[@ordinal] was used for the advanced analyses.
+
+# Results
+
+## The 2016 survey
 
 ```{r current-fisher}
 current_cont <- status %>%
@@ -192,7 +200,7 @@ current_model %>%
   )
 ```
 
-## Interpretation
+### Interpretation
 
 Placing lights all around the exterior has strong negative effects on the presences of bats. The odds ratio (OR) for having no bats when fully lit is `r current_or$print[2]` compared to dark churches. The difference between dark and partly lit churches is unclear (OR: `r current_or$print[1]`).
 
@@ -251,7 +259,7 @@ ggplot(
   )
 ```
 
-# Comparison with 1980s survey
+## Comparison with 1980s survey
 
 During the 2016 survey, all 60 churches of the 1980s survey have been revisted and 50 additional churches. The authors take the repeated measures into account by using McNemar's test[@Rydell]. This test works only on 2x2 tables. 
 
@@ -326,7 +334,7 @@ survey_model0 %>%
   )
 ```
 
-## Interpretation^[Based on the full data.]
+### Interpretation^[Based on the full data.]
 
 The difference in odds for finding no bats between both surveys is unclear (OR: `r survey_or$print[3]`). Likewise is the difference between dark and partly lit churches in 2016 (OR: `r survey_or$print[4]`). The odds highly increase when changing for a dark to a full lit church (OR: `r survey_or$print[5]`).
 
@@ -408,12 +416,13 @@ ggplot(
   facet_wrap(~Status)
 ```
 
-# Effect of renovations
+## Effect of renovations
 
 ```{r renovation-ordinal}
 renovation_model <- clmm(
   Status ~ Survey + Lights + Renovated + (1|Church), 
-  data = status
+  data = status,
+  subset = n == 2
 )
 ```
 
@@ -493,4 +502,4 @@ ggplot(
   facet_wrap(~Status)
 ```
 
-# Conclusions
+# Discussion
