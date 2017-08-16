@@ -30,9 +30,9 @@ keywords:
   - ordinal regression
 
 abstract: |
-  This comment reanalyses the data presented in [@Rydell] which were analysed using only very basic statistics as Fisher's extact test and McNemar's test. We would like to demonstrate how the use of more advanced statistical methods can make better use of the available data, quantify the observed effects and strengthen the conclusions in [@Rydell].
+  This comment reanalyses the data presented in [@Rydell] which were analysed using only very basic statistics like Fisher's extact test and McNemar's test. We demonstrate how the use of more advanced statistical methods can make better use of the available data, quantify the observed effects and strengthen the conclusions in [@Rydell].
   
-  We have no intent to discrit the origal authors. Their analysis was basic but correct.
+  We have no intent to discrit the origal authors. Their analyses were basic but correct.
 
 first_page_text: |
 
@@ -123,7 +123,7 @@ current_p <- fisher.test(current_cont$Status, current_cont$Lights)$p.value %>%
   round(4)
 ```
 
-The 2016 survey holds information on the presence of bats and the light status of the churches. Both variables can be represented as ordinal variables. The presence of the bats is recorded as `no bats` < `used` < `colony`. The light status is `dark` < `partly lit` < `fully lit`. After calculating a contigency table (tab \@ref(tab:current-contigency)), we can apply Fisher's exact test ($p = `r current_p`$). The interpretation of the test is limited: we reject the null hypothesis that the presence of bats and the light status are independent. It doesn't yield information on the effect size. To get arround this, the 3x3 contingency table was recombined in several 2x2 tables. Each of those were subjected to Fisher's extact test and the effect size was based on interpretation of the 2x2 tables. We found 2 such tests in the manuscript [@Rydell] and 4 in the dataset.
+The 2016 survey holds information on the presence of bats and the light status of the churches. Both variables can be represented as ordinal variables. The presence of the bats is recorded as `no bats` < `used` < `colony`. The light status is `dark` < `partly lit` < `fully lit`. After calculating a contigency table, we can apply Fisher's exact test ($p = `r current_p`$). The interpretation of the test is limited: we reject the null hypothesis that the presence of bats and the light status are independent. It doesn't yield information on the effect size. To get arround this, the 3x3 contingency table was recombined in several 2x2 tables. Each of those were subjected to Fisher's extact test and the effect size was based on interpretation of the 2x2 tables. We found 2 such tests in the manuscript [@Rydell] and 4 in the dataset.
 
 ```{r current-contigency}
 crosstab <- current_cont %>%
@@ -132,39 +132,6 @@ crosstab <- current_cont %>%
     Status = as.character(Status)
   ) %>%
   count(Lights, Status)
-crosstab %>%
-  group_by(Lights) %>%
-  summarise(
-    Status = "total",
-    n = sum(n)
-  ) %>%
-  bind_rows(
-    crosstab %>%
-      group_by(Status) %>%
-      summarise(
-        Lights = "total",
-        n = sum(n)
-      ),
-    crosstab %>%
-      summarise(
-        Status = "total",
-        Lights = "total",
-        n = sum(n)
-      ),
-    crosstab
-  ) %>%
-  mutate(
-    Status = factor(
-      Status, 
-      levels = c("no bats", "used", "colony", "total")
-    ),
-    Lights = factor(
-      Lights, 
-      levels = c("dark", "partly lit", "fully lit", "total")
-    )
-  ) %>%
-  spread(Status, n) %>%
-  kable(caption = "Contingency table for the 2016 survey")
 ```
 
 ```{r current-ordinal}
@@ -178,7 +145,7 @@ current_lrt <- sprintf(
 )
 ```
 
-Another option is to analyse ordinal data with cumulative logit models[@ordinal]. The general form is given in eq \@ref(eq:cum-logit). In this case the presence of bats is the response variable and the light status is used as covariate. We can use a likelihood ratio test (LRT) to test for the overall effect of the light status (`r current_lrt`). The effect size is quantified through the coefficients (tab. \@ref(tab:current-coef)). The predictions (fig. \@ref(fig:current-prediction)) yield the same values as fig. 2 in [@Rydell] but fig. \@ref(fig:current-prediction) adds confidence intervals on top.
+Another option is to analyse ordinal data with cumulative logit models[@ordinal]. The general form is given in eq \@ref(eq:cum-logit). In this case the presence of bats is the response variable and the light status is used as covariate. We can use a likelihood ratio test (LRT) to test for the overall effect of the light status (`r current_lrt`). The predictions (fig. \@ref(fig:current-prediction)) yield the same values as fig. 2 in [@Rydell] but fig. \@ref(fig:current-prediction) adds confidence intervals on top.
 
 \begin{equation} 
   \mbox{logit}(P(Y_i <= j)) = \theta_j - x_i^T\beta
@@ -194,18 +161,11 @@ current_or <- confint(current_model) %>%
   mutate(
     print = sprintf("$OR:%.2f (%.2f; %.2f)$", mean, lcl, ucl)
   )
-current_model %>%
-  summary() %>%
-  coef() %>%
-  kable(
-    digits = c(3, 3, 2, 4),
-    caption = "Coefficients of the cumulative logit model for the 2016 survey."
-  )
 ```
 
 ### Interpretation
 
-Placing lights all around the exterior has strong negative effects on the presences of bats. The odds ratio ($OR$) for having no bats when fully lit is `r current_or$print[2]` compared to dark churches. The difference between dark and partly lit churches is unclear^[Note that $1$ is included in the confidence interval. $OR = 1$ implies that both odds are equal, hence no effect.] `r current_or$print[1]`.
+Placing lights all around the exterior has strong negative effects on the presence of bats. The odds ratio ($OR$) for having no bats when fully lit is `r current_or$print[2]` compared to dark churches. The difference between dark and partly lit churches is unclear^[Note that $1$ is included in the confidence interval. $OR = 1$ implies that both odds are equal, hence no effect.] `r current_or$print[1]`.
 
 ```{r current-contrast}
 cumulative_logit <- contrasts(
@@ -296,7 +256,7 @@ survey_lrt <- sprintf(
 )
 ```
 
-Let's see what the impact is of using a larger dataset. The LRT for the survey effect on the paired data is `r survey_lrt0[1]` and `r survey_lrt[1]` for the full data. Likewise we have `r survey_lrt0[2]` and `r survey_lrt[2]` for the light status. The comparison between the model coefficients is given in tab \@ref(tab:survey-coef). At first glance some of the coefficient are different. The influence on the predictions is depicted in fig. \@ref(fig:survey-prediction). The differences in coefficient and predictions might be due a possible bias in the 1980s survey, since using only the paired data yields higher estimates. Note that the confidence interval on the predictions are more narrow when we use the full data and that the estimates of the paired dataset are within the confidence intervals of the full data.
+Let's see what the impact is of using a larger dataset. The LRT for the survey effect on the paired data is `r survey_lrt0[1]` and `r survey_lrt[1]` for the full data. Likewise we have `r survey_lrt0[2]` and `r survey_lrt[2]` for the light status. The influence on the predictions is depicted in fig. \@ref(fig:survey-prediction). The differences in predictions might be due a possible bias in the 1980s survey, since using only the paired data yields higher estimates. Note that the confidence interval on the predictions are more narrow when we use the full data and that the estimates of the paired dataset are within the confidence intervals of the full data.
 
 ```{r survey-coef}
 survey_or <- confint(survey_model) %>%
@@ -306,34 +266,6 @@ survey_or <- confint(survey_model) %>%
   select(mean = 3, lcl = 1, ucl = 2) %>%
   mutate(
     print = sprintf("$OR:%.2f (%.2f; %.2f)$", mean, lcl, ucl)
-  )
-survey_model0 %>%
-  summary() %>%
-  coef() %>%
-  as.data.frame() %>%
-  rownames_to_column() %>%
-  select(
-    Parameter = 1, 
-    "Pair Es" = 2, 
-    "Pair SE" = 3, 
-    "Pair z" = 4,
-    "Pair p" = 5
-  ) %>%
-  bind_cols(
-    survey_model %>%
-      summary() %>%
-      coef() %>%
-      as.data.frame() %>%
-      select(
-        "All Es" = 1, 
-        "All SE" = 2, 
-        "All z" = 3,
-        "All p" = 4
-      )
-  ) %>%
-  kable(
-    digits = c(0, 3, 3, 2, 4, 3, 3, 2, 4),
-    caption = "Comparison between the coefficients of the cumulative logit mixed models for the paired dataset and the full dataset."
   )
 ```
 
@@ -447,13 +379,6 @@ renovation_or <- confint(renovation_model) %>%
   mutate(
     print = sprintf("$OR:%.2f (%.2f; %.2f)$", mean, lcl, ucl)
   )
-renovation_model %>%
-  summary() %>%
-  coef() %>%
-  kable(
-    digits = c(3, 3, 2, 4),
-    caption = "Coefficients of the cumulative logit model for the renovation model."
-  )
 ```
 
 ```{r renovation-contrast}
@@ -526,12 +451,13 @@ cumulative_prediction <- cumulative_logit %>%
     Lights = factor(Lights, levels = levels(status$Lights))
   )
 ```
+
 ### Interpretation
 
-We find no evidence for an effect between surveys `r renovation_or$print[3]` (LTR: `r renovation_lrt[1]`). The light status has a significant effect (LTR: `r renovation_lrt[2]`). We find an unclear effect of partly lit vs dark `r renovation_or$print[4]`, but a the odd for no bats between fully lit and dark increases `r renovation_or$print[5]`. Addionally after renovation, the odds for no bat increase `r renovation_or$print[6]` (LTR: `r renovation_lrt[3]`). The resulting predictions are given in fig. \@ref{fig:renovation-prediction}. We could wonder which is worse: a fully lit, non renovated church or a dark, renovated church. 
+We find no evidence for an effect between surveys `r renovation_or$print[3]` (LTR: `r renovation_lrt[1]`). The light status has a significant effect (LTR: `r renovation_lrt[2]`). We find an unclear effect of partly lit vs dark `r renovation_or$print[4]`, but a the odd for no bats between fully lit and dark increases `r renovation_or$print[5]`. Addionally after renovation, the odds for no bats increase `r renovation_or$print[6]` (LTR: `r renovation_lrt[3]`). The resulting predictions are given in fig. \@ref(fig:renovation-prediction). We could wonder which is worse: a fully lit, non renovated church or a dark, renovated church. 
 After calculting the odds ratio `r renovation_contrast$print[1]`, we must conclude that we cannot make a hard statement that one is worse than the other.
 
-```{r renovation-prediction, fig.cap = "Estimated cumulative probability"}
+```{r renovation-prediction, fig.cap = "Estimated cumulative probability for the renovation model"}
 ggplot(
   cumulative_prediction, 
   aes(
@@ -556,3 +482,5 @@ ggplot(
 ```
 
 # Discussion
+
+We demonstrate how cumulative logit (mixed) models[@ordinal] are useful to analyse ordinal data and give more insight in the data.
