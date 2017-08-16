@@ -28,11 +28,10 @@ keywords:
   - biodiversity
   - light pollution
   - ordinal regression
+  - mixed models
 
 abstract: |
-  This comment reanalyses the data presented in [@Rydell] which were analysed using only very basic statistics like Fisher's extact test and McNemar's test. We demonstrate how the use of more advanced statistical methods can make better use of the available data, quantify the observed effects and strengthen the conclusions in [@Rydell].
-  
-  We have no intent to discrit the origal authors. Their analyses were basic but correct.
+  This comment reanalyses the data presented in [@Rydell] which were analysed using only very basic statistics like Fisher's extact test and McNemar's test. We demonstrate how the use of more advanced statistical methods can make better use of the available data, quantify the observed effects and strengthen the conclusions in [@Rydell]. We have no intention to discrit the origal authors. Their analyses were basic but correct.
 
 first_page_text: |
 
@@ -60,7 +59,7 @@ opts_chunk$set(
   cache = TRUE,
   autodep = TRUE,
   fig.width = 4,
-  fig.height = 2,
+  fig.height = 1.6,
   echo = FALSE,
   message = FALSE
 )
@@ -110,7 +109,7 @@ contrasts <- function(model, contrast, n = 1000){
 ```
 # Material and methods
 
-The analysis is based on the original data[@Rydell]. The entire analysis is run in R 3.4.1 [@R]. The `tidyverse`[@tidyverse] collection of packages was used for the data import, data wrangling and data visualisation. `ordinal`[@ordinal] was used for the advanced analyses.
+The analysis was based on the original data[@Rydell] and run in R 3.4.1 [@R]. The `tidyverse`[@tidyverse] collection of packages was used for the data import, data wrangling and data visualisation. `ordinal`[@ordinal] was used for the advanced analyses.
 
 # Results
 
@@ -123,7 +122,7 @@ current_p <- fisher.test(current_cont$Status, current_cont$Lights)$p.value %>%
   round(4)
 ```
 
-The 2016 survey holds information on the presence of bats and the light status of the churches. Both variables can be represented as ordinal variables. The presence of the bats is recorded as `no bats` < `used` < `colony`. The light status is `dark` < `partly lit` < `fully lit`. After calculating a contigency table, we can apply Fisher's exact test ($p = `r current_p`$). The interpretation of the test is limited: we reject the null hypothesis that the presence of bats and the light status are independent. It doesn't yield information on the effect size. To get arround this, the 3x3 contingency table was recombined in several 2x2 tables. Each of those were subjected to Fisher's extact test and the effect size was based on interpretation of the 2x2 tables. We found 2 such tests in the manuscript [@Rydell] and 4 in the dataset.
+The 2016 survey holds information on the presence of bats and the light status of the churches. Both variables can be represented as ordinal variables. The presence of the bats is recorded as `no bats` < `used` < `colony`. The light status is `dark` < `partly lit` < `fully lit`. After calculating a contigency table, we can apply Fisher's exact test ($p = `r current_p`$). The interpretation of the test is limited: we reject the null hypothesis that the presence of bats and the light status are independent. It doesn't yield information on the effect size. To get arround this, the 3x3 contingency table was recombined in several 2x2 tables. Each of those were subjected to Fisher's extact test and the effect size was based on interpretation of the 2x2 tables. We found two such tests in the manuscript [@Rydell] and four in the dataset.
 
 ```{r current-contigency}
 crosstab <- current_cont %>%
@@ -145,7 +144,7 @@ current_lrt <- sprintf(
 )
 ```
 
-Another option is to analyse ordinal data with cumulative logit models[@ordinal]. The general form is given in eq \@ref(eq:cum-logit). In this case the presence of bats is the response variable and the light status is used as covariate. We can use a likelihood ratio test (LRT) to test for the overall effect of the light status (`r current_lrt`). The predictions (fig. \@ref(fig:current-prediction)) yield the same values as fig. 2 in [@Rydell] but fig. \@ref(fig:current-prediction) adds confidence intervals on top.
+Another option is to analyse ordinal data with cumulative logit models[@ordinal]. The general form is given in eq \@ref(eq:cum-logit). In this case the presence of bats is the response variable and the light status is the covariate. We test for the overall effect of the light status with a likelihood ratio test ($LRT$) (`r current_lrt`). The predictions (fig. \@ref(fig:current-prediction)) yield the same values as fig. 2 in [@Rydell] but fig. \@ref(fig:current-prediction) adds confidence intervals.
 
 \begin{equation} 
   \mbox{logit}(P(Y_i <= j)) = \theta_j - x_i^T\beta
@@ -165,7 +164,7 @@ current_or <- confint(current_model) %>%
 
 ### Interpretation
 
-Placing lights all around the exterior has strong negative effects on the presence of bats. The odds ratio ($OR$) for having no bats when fully lit is `r current_or$print[2]` compared to dark churches. The difference between dark and partly lit churches is unclear^[Note that $1$ is included in the confidence interval. $OR = 1$ implies that both odds are equal, hence no effect.] `r current_or$print[1]`.
+Placing lights all around the exterior has strong negative effects on the presence of bats. The odds ratio ($OR$) for having no bats when fully lit compared to dark churches is `r current_or$print[2]`. The difference between dark and partly lit churches is unclear^[Note that $1$ is included in the confidence interval. $OR = 1$ implies that both odds are equal, hence no effect.] `r current_or$print[1]`.
 
 ```{r current-contrast}
 cumulative_logit <- contrasts(
@@ -224,9 +223,9 @@ ggplot(
 
 ## Comparison with 1980s survey
 
-During the 2016 survey, all 60 churches of the 1980s survey have been revisted and 50 additional churches. The authors take the repeated measures into account by using McNemar's test[@Rydell]. This test works only on 2x2 tables. 
+During the 2016 survey, all 60 churches of the 1980s survey have been revisted and 50 additional churches. The orignal authors take the repeated measures into account by using McNemar's test[@Rydell]. This test works only on 2x2 tables. 
 
-A better alternative would be to use cumulative logit mixed models[@ordinal]. In this case we would use survey and light status as fixed effects and church as a random effect. This random effect takes the paired nature of the dataset into account. Note that this model can separate the survey effect and the light status effect. The survey effect would an overall decline in bat between surveys when the church remains dark. The interaction between survey and light status is not relevant since all churches were unlit in the 1980s survey. While the McNemar test requires all data to be paired, the mixed model does not. Hence we can also use the data on the churches surveyed only in 2016.
+A better alternative would be to use cumulative logit mixed models[@ordinal]. In this case we use survey and light status as fixed effects and church as a random effect. This random effect takes the paired nature of the dataset into account. Note that the model separates the survey effect and the light status effect. The survey effect would an overall decline in bat between surveys when the church remains dark. The interaction between survey and light status is not relevant since all churches were unlit in the 1980s survey. While the McNemar test requires all data to be paired, the mixed model does not. Hence we can also use the data on the churches surveyed only in 2016.
 
 ```{r survey-ordinal}
 survey_model0 <- clmm(
@@ -256,7 +255,7 @@ survey_lrt <- sprintf(
 )
 ```
 
-Let's see what the impact is of using a larger dataset. The LRT for the survey effect on the paired data is `r survey_lrt0[1]` and `r survey_lrt[1]` for the full data. Likewise we have `r survey_lrt0[2]` and `r survey_lrt[2]` for the light status. The influence on the predictions is depicted in fig. \@ref(fig:survey-prediction). The differences in predictions might be due a possible bias in the 1980s survey, since using only the paired data yields higher estimates. Note that the confidence interval on the predictions are more narrow when we use the full data and that the estimates of the paired dataset are within the confidence intervals of the full data.
+Let's see what the impact of using a larger dataset is. The $LRT$ for the survey effect on the paired data is `r survey_lrt0[1]` and `r survey_lrt[1]` for the full data. Likewise we have `r survey_lrt0[2]` and `r survey_lrt[2]` for the light status. The influence on the predictions is depicted in fig. \@ref(fig:survey-prediction). The differences in predictions might be due a possible bias in the 1980s survey, since the paired data yields higher estimates. Note that the confidence interval on the predictions are more narrow when we use the full data and that the estimates of the paired dataset are within the confidence intervals of the full data.
 
 ```{r survey-coef}
 survey_or <- confint(survey_model) %>%
@@ -353,7 +352,7 @@ ggplot(
 
 ## Effect of renovations
 
-We can used only the paired dataset for this analysis because the renovation status is only available for churches from the 1980s survey. We added the renovation status as a fixed effect to the model. The interaction between lights status and renovation status would be relevant, but that gave a singular model. 
+The renovation status is only available for churches from the 1980s survey, hence we can only use the paired dataset for this analysis. We added the renovation status as a fixed effect to the model. The interaction between lights status and renovation status would be relevant, but this gave a singular model. 
 
 ```{r renovation-ordinal}
 renovation_model <- clmm(
@@ -454,8 +453,7 @@ cumulative_prediction <- cumulative_logit %>%
 
 ### Interpretation
 
-We find no evidence for an effect between surveys `r renovation_or$print[3]` (LTR: `r renovation_lrt[1]`). The light status has a significant effect (LTR: `r renovation_lrt[2]`). We find an unclear effect of partly lit vs dark `r renovation_or$print[4]`, but a the odd for no bats between fully lit and dark increases `r renovation_or$print[5]`. Addionally after renovation, the odds for no bats increase `r renovation_or$print[6]` (LTR: `r renovation_lrt[3]`). The resulting predictions are given in fig. \@ref(fig:renovation-prediction). We could wonder which is worse: a fully lit, non renovated church or a dark, renovated church. 
-After calculting the odds ratio `r renovation_contrast$print[1]`, we must conclude that we cannot make a hard statement that one is worse than the other.
+We find no evidence for an effect between surveys `r renovation_or$print[3]`, $LTR:$ `r renovation_lrt[1]`. The light status has a significant effect $LTR:$ `r renovation_lrt[2]`. We find an unclear effect of partly lit vs dark `r renovation_or$print[4]`, but the odds for no bats between fully lit and dark increases `r renovation_or$print[5]`. Addionally, after renovation, the odds for no bats increase `r renovation_or$print[6]`, $LTR:$ `r renovation_lrt[3]`. The predictions are given in fig. \@ref(fig:renovation-prediction). We could wonder which is worse: a fully lit, non renovated church or a dark, renovated church. After calculting the odds ratio `r renovation_contrast$print[1]`, we must conclude that we cannot make a hard statement that one is worse than the other.
 
 ```{r renovation-prediction, fig.cap = "Estimated cumulative probability for the renovation model"}
 ggplot(
