@@ -31,7 +31,7 @@ keywords:
   - mixed models
 
 abstract: |
-  This comment reanalyses the data presented in [@Rydell] which were analysed using only very basic statistics like Fisher's extact test and McNemar's test. We demonstrate how the use of more advanced statistical methods can make better use of the available data, quantify the observed effects and strengthen the conclusions in [@Rydell]. We have no intention to discrit the origal authors. Their analyses were basic but correct.
+  This comment reanalyses the data presented in [@Rydell] which were analysed using only very basic statistics like Fisher's extact test and McNemar's test. We demonstrate how the use of more advanced statistical methods can make better use of the available data, quantify the observed effects and strengthen the conclusions in [@Rydell]. We have no intention to discredit the origal authors. Their analyses were basic but correct.
 
 first_page_text: |
 
