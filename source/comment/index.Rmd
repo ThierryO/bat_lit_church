@@ -124,6 +124,8 @@ current_p <- fisher.test(current_cont$Status, current_cont$Lights)$p.value %>%
 
 The 2016 survey holds information on the presence of bats and the light status of the churches. Both variables can be represented as ordinal variables. The presence of the bats is recorded as `no bats` < `used` < `colony`. The light status is `dark` < `partly lit` < `fully lit`. After calculating a contigency table, we can apply Fisher's exact test ($p = `r current_p`$). The interpretation of the test is limited: we reject the null hypothesis that the presence of bats and the light status are independent. It doesn't yield information on the effect size. To get arround this, the 3x3 contingency table was recombined in several 2x2 tables. Each of those were subjected to Fisher's extact test and the effect size was based on interpretation of the 2x2 tables. We found two such tests in the manuscript [@Rydell] and four in the dataset.
 
+\EndFirstPage
+
 ```{r current-contigency}
 crosstab <- current_cont %>%
   transmute(
