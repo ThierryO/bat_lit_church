@@ -59,13 +59,21 @@ opts_chunk$set(
   fig.width = 4,
   fig.height = 1.6,
   echo = FALSE,
+  warning = FALSE,
   message = FALSE
 )
 library(tidyverse)
 library(ordinal)
 library(mvtnorm)
 library(scales)
-theme_set(theme_grey(base_size = 6))
+theme_set(
+  theme_grey(base_size = 6) +
+  theme(
+    legend.title = element_text(size = rel(0.8)),
+    legend.spacing = unit(0.1, "cm"),
+    legend.key.size = unit(1, "lines")
+  )
+)
 ```
 
 ```{r load-data}
@@ -144,7 +152,7 @@ current_lrt <- sprintf(
 )
 ```
 
-Another option is to analyse ordinal data with cumulative logit models[@ordinal]. The general form is given in eq \@ref(eq:cum-logit). In this case the presence of bats is the response variable and the light status is the covariate. We test for the overall effect of the light status with a likelihood ratio test ($LRT$) (`r current_lrt`). The predictions (fig. \@ref(fig:current-prediction)) yield the same values as fig. 2 in [@Rydell] but fig. \@ref(fig:current-prediction) adds confidence intervals.
+Another option is to analyse ordinal data with cumulative logit models[@ordinal]. The general form is given in eq \@ref(eq:cum-logit). In this case the presence of bats is the response variable and the light status is the covariate. We test for the overall effect of the light status with a likelihood ratio test ($LRT$) (`r current_lrt`). The predictions (fig. \@ref(fig:current-prediction)) yield similar values as fig. 2 in [@Rydell].
 
 \begin{equation} 
   \mbox{logit}(P(Y_i <= j)) = \theta_j - x_i^T\beta
@@ -199,23 +207,52 @@ cumulative_prediction <- cumulative_logit %>%
   mutate(Lights = factor(Lights, levels = levels(status$Lights)))
 ```
 
-```{r current-prediction, fig.cap = "Estimated cumulative probability based on the 2016 survey."}
-ggplot(
-  cumulative_prediction, 
-  aes(
-    x = Lights, 
-    y = Mean, ymin = LCL, ymax = UCL, 
-    colour = Status
-  )
-) +
-  geom_errorbar(position = position_dodge(width = 0.6)) +
-  geom_point(position = position_dodge(width = 0.6)) +
+```{r current-prediction, fig.cap = "Estimated cumulative probability based on the 2016 survey using the basic and advanced method."}
+status %>%
+  filter(Survey == "2016", Status != "no bats") %>%
+  count(Lights, Status) %>%
+  group_by(Lights) %>%
+  mutate(
+    Naive = cumsum(nn),
+    Status = ifelse(Status == "colony", "colony", "colony or used")
+  ) %>%
+  ungroup() %>%
+  inner_join(
+    status %>%
+      filter(Survey == "2016") %>%
+      count(Lights),
+    by = "Lights"
+  ) %>%
+  transmute(
+    Lights,
+    Status,
+    Mean = Naive / nn.y,
+    Method = "basic"
+  ) %>%
+  bind_rows(
+    cumulative_prediction %>%
+      mutate(Method = "advanced")
+  ) %>%
+  mutate(
+    Method = factor(Method, levels = c("basic", "advanced"))
+  ) %>%
+  ggplot(
+    aes(
+      x = Lights, 
+      y = Mean, ymin = LCL, ymax = UCL, 
+      colour = Status,
+      shape = Method
+    )
+  ) +
+  geom_errorbar(position = position_dodge(width = 0.5)) +
+  geom_point(position = position_dodge(width = 0.5)) +
   scale_x_discrete("Light status") +
   scale_y_continuous(
     "Estimated cumulative probability",
     labels = percent, 
     limits = 0:1
   ) +
+  scale_shape_manual(values = c("advanced" = 19, "basic" = 4)) +
   scale_color_manual(
     values = c("colony" = "black", "colony or used" = "darkgrey")
   )
