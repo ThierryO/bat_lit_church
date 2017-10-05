@@ -519,3 +519,5 @@ ggplot(
 # Discussion
 
 We demonstrate how cumulative logit (mixed) models[@ordinal] are useful to analyse ordinal data and give more insight in the data.
+
+When presenting the results to non-scientific readers like decision makers, we would use fig. \@ref(fig:renovation-prediction) because it summarizes the entire study in a single figure. The confidence intervals give a sense of the uncertainty associated to the results and reduce the need for stating p-values.
