@@ -35,7 +35,7 @@ abstract: |
 
 ## Remove this if not required
 data_accessibility: |
-  The data and the code is available at https://github.com/thierryo/rydell_etal_2017
+  The data and the code is available on https://github.com/ThierryO/rydell_etal_2017 (DOI: [10.5281/zenodo.1002852](https://doi.org/10.5281/zenodo.1002852))
 
 author_contributions: |
   T.O. made the analysis and wrote the draft.
